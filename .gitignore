@@ -1,7 +1,21 @@
-venv/
+# Python
 __pycache__/
 *.pyc
-.DS_Store
+venv/
+.venv/
+
+# Tests and coverage output
+.pytest_cache/
 .coverage
-.pytest_cache
-htmlcov
+htmlcov/
+test-results/
+
+# Logs
+logs/
+*.log
+
+# Editor and system files
+.DS_Store
+
+# Scratch files
+module8_files.txt

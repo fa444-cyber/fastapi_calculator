@@ -1,74 +1,71 @@
-# tests/e2e/conftest.py
+# tests/conftest.py
 
 import subprocess
+import sys
 import time
-import pytest
-from playwright.sync_api import sync_playwright
-import requests
+from pathlib import Path
 
-@pytest.fixture(scope='session')
+import pytest
+import requests
+from playwright.sync_api import sync_playwright
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SERVER_URL = "http://127.0.0.1:8000/"
+
+
+@pytest.fixture(scope="session")
 def fastapi_server():
     """
-    Fixture to start the FastAPI server before E2E tests and stop it after tests complete.
+    Start the FastAPI server before the end-to-end tests and stop it afterwards.
+
+    The fixture returns the server's URL, so tests can use it with page.goto().
     """
-    # Start FastAPI app
-    fastapi_process = subprocess.Popen(['python', 'main.py'])
-    
-    # Define the URL to check if the server is up
-    server_url = 'http://127.0.0.1:8000/'
-    
-    # Wait for the server to start by polling the root endpoint
+    # Run main.py with the same Python that is running the tests
+    process = subprocess.Popen([sys.executable, "main.py"], cwd=PROJECT_ROOT)
+
+    # Wait for the server to start by polling the home page
     timeout = 30  # seconds
     start_time = time.time()
     server_up = False
-    
-    print("Starting FastAPI server...")
-    
+
     while time.time() - start_time < timeout:
         try:
-            response = requests.get(server_url)
-            if response.status_code == 200:
+            if requests.get(SERVER_URL, timeout=2).status_code == 200:
                 server_up = True
-                print("FastAPI server is up and running.")
                 break
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException:
             pass
         time.sleep(1)
-    
+
     if not server_up:
-        fastapi_process.terminate()
-        raise RuntimeError("FastAPI server failed to start within timeout period.")
-    
-    yield
-    
-    # Terminate FastAPI server
-    print("Shutting down FastAPI server...")
-    fastapi_process.terminate()
-    fastapi_process.wait()
-    print("FastAPI server has been terminated.")
+        process.terminate()
+        raise RuntimeError("FastAPI server failed to start within the timeout period.")
+
+    yield SERVER_URL
+
+    # Stop the server
+    process.terminate()
+    process.wait()
+
 
 @pytest.fixture(scope="session")
 def playwright_instance_fixture():
-    """
-    Fixture to manage Playwright's lifecycle.
-    """
+    """Manage Playwright's lifecycle."""
     with sync_playwright() as p:
         yield p
 
+
 @pytest.fixture(scope="session")
 def browser(playwright_instance_fixture):
-    """
-    Fixture to launch a browser instance.
-    """
+    """Launch one headless browser for the whole test session."""
     browser = playwright_instance_fixture.chromium.launch(headless=True)
     yield browser
     browser.close()
 
+
 @pytest.fixture(scope="function")
 def page(browser):
-    """
-    Fixture to create a new page for each test.
-    """
+    """Give every test a fresh browser page."""
     page = browser.new_page()
     yield page
     page.close()
