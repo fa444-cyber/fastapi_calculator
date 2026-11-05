@@ -60,14 +60,26 @@ docker stop test_postgres
 docker rm test_postgres
 ```
 
+### Calculation model tests
+
+The calculation tests cover the `Calculation` model, the `CalculationCreate` and `CalculationRead` schemas, and the calculation factory. Run them on their own with:
+
+```bash
+pytest tests/unit/test_calculation.py
+pytest tests/integration/test_calculation_db.py
+```
+
+The integration test needs the Postgres container running, as described above.
+
 ## Project structure
 
 - `main.py`: FastAPI routes for the calculator
 - `app/operations/`: arithmetic operations
+- `app/calculation_factory.py`: maps Add, Sub, Multiply, and Divide to their operations
 - `app/logging_config.py`: logging setup
-- `app/models.py`: SQLAlchemy `User` model
-- `app/schemas.py`: Pydantic `UserCreate` and `UserRead` schemas
+- `app/models.py`: SQLAlchemy `User` and `Calculation` models
+- `app/schemas.py`: Pydantic `UserCreate`, `UserRead`, `CalculationCreate`, and `CalculationRead` schemas
 - `app/security.py`: bcrypt password hashing and verification
 - `app/database.py`: database engine and session setup
 - `tests/unit/`, `tests/integration/`, `tests/e2e/`: test suites
-- `.github/workflows/test.yml`: GitHub Actions workflow that runs the tests on every push and pull request to `main`
+- `.github/workflows/test.yml`: GitHub Actions workflow that runs the tests on every push and pull request to `main`, then pushes the Docker image after the tests pass
