@@ -71,6 +71,21 @@ pytest tests/integration/test_calculation_db.py
 
 The integration test needs the Postgres container running, as described above.
 
+## Known vulnerabilities
+
+The CI pipeline runs a Trivy scan on the Docker image before it pushes to Docker Hub. The scan fails on CRITICAL or HIGH findings that have a fix available. Six findings are accepted for now and listed in `.trivyignore`:
+
+| CVE | Package | Reason |
+|---|---|---|
+| CVE-2026-63374 | anyio 4.6.2.post1 (CRITICAL) | Upgrading to 4.14.2 breaks the browser (e2e) test |
+| CVE-2025-43859 | h11 0.14.0 | Fix needs httpcore upgraded with it |
+| CVE-2025-47273 | setuptools 70.3.0 | Comes from the base Python image |
+| CVE-2025-62727 | starlette 0.41.2 | Fix needs fastapi upgraded with it |
+| CVE-2026-48818 | starlette 0.41.2 | Fix needs fastapi upgraded with it |
+| CVE-2026-54283 | starlette 0.41.2 | Fix needs fastapi upgraded with it |
+
+These are planned for a later update, which will upgrade `starlette` and `fastapi` together, pair `h11` with `httpcore`, and resolve the `anyio` browser test failure.
+
 ## Project structure
 
 - `main.py`: FastAPI routes for the calculator
@@ -82,4 +97,5 @@ The integration test needs the Postgres container running, as described above.
 - `app/security.py`: bcrypt password hashing and verification
 - `app/database.py`: database engine and session setup
 - `tests/unit/`, `tests/integration/`, `tests/e2e/`: test suites
-- `.github/workflows/test.yml`: GitHub Actions workflow that runs the tests on every push and pull request to `main`, then pushes the Docker image after the tests pass
+- `.github/workflows/test.yml`: GitHub Actions workflow that runs the tests on every push and pull request to `main`, scans the image with Trivy, then pushes the Docker image after the tests and scan pass
+- `.trivyignore`: accepted Trivy findings, with reasons in the README
