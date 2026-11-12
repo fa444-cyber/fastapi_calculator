@@ -72,6 +72,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Build the image locally for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_calculator:latest
+
+      - name: Scan the image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi_calculator:latest
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
       - name: Build and push the image
         uses: docker/build-push-action@v6
         with:
