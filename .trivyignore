@@ -1,1 +1,10 @@
-CVE-2024-6345
+# Known findings accepted for now. Each one needs a newer version that
+# either breaks an existing test (anyio) or needs another package upgraded
+# with it (h11 with httpcore, starlette with fastapi). setuptools comes
+# from the base Python image.
+CVE-2026-63374  # anyio 4.6.2.post1: upgrade to 4.14.2 breaks the browser test
+CVE-2025-43859  # h11 0.14.0: needs httpcore upgraded with it
+CVE-2025-47273  # setuptools 70.3.0: comes from the base image
+CVE-2025-62727  # starlette 0.41.2: needs fastapi upgraded with it
+CVE-2026-48818  # starlette 0.41.2: needs fastapi upgraded with it
+CVE-2026-54283  # starlette 0.41.2: needs fastapi upgraded with it
