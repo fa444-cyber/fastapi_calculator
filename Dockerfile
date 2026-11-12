@@ -14,7 +14,8 @@ RUN apt-get update && \
     useradd -r -g appgroup appuser
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip uninstall -y setuptools wheel jaraco.context || true
 
 COPY . .
 RUN chown -R appuser:appgroup /app
