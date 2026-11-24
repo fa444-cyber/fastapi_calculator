@@ -15,6 +15,7 @@ from app.logging_config import setup_logging
 from app.models import Base
 from app.operations import add, divide, multiply, subtract
 from app.user_routes import router as user_router
+from app.calculation_routes import router as calculation_router
 
 # Send log messages to the console and to logs/app.log
 setup_logging()
@@ -30,6 +31,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(user_router)
+app.include_router(calculation_router)
 
 # Setup templates directory
 templates = Jinja2Templates(directory="templates")
