@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.calculation_factory import CalculationFactory
 from app.database import get_db
 from app.models import Calculation
 from app.schemas import CalculationCreate, CalculationRead
-from app.calculation_factory import CalculationFactory
 
 router = APIRouter(prefix="/calculations", tags=["calculations"])
 
@@ -25,7 +25,7 @@ def read_calculation(calc_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=CalculationRead, status_code=status.HTTP_201_CREATED)
 def add_calculation(payload: CalculationCreate, db: Session = Depends(get_db)):
     result = CalculationFactory.compute(payload.type, payload.a, payload.b)
-    calc = Calculation(a=payload.a, b=payload.b, type=payload.type, result=result, user_id=payload.user_id)
+    calc = Calculation(a=payload.a, b=payload.b, type=payload.type, result=result)
     db.add(calc)
     db.commit()
     db.refresh(calc)
