@@ -1,6 +1,7 @@
 # main.py
 
 import logging
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -9,14 +10,26 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator
 
+from app.database import engine
 from app.logging_config import setup_logging
+from app.models import Base
 from app.operations import add, divide, multiply, subtract
+from app.user_routes import router as user_router
 
 # Send log messages to the console and to logs/app.log
 setup_logging()
 logger = logging.getLogger("calculator")
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Create any missing tables (users, calculations) when the app starts
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(user_router)
 
 # Setup templates directory
 templates = Jinja2Templates(directory="templates")
