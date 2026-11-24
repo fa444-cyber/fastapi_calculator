@@ -43,11 +43,12 @@ class Calculation(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    # Optional for now: calculations are not tied to a user yet.
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
 
-    user: Mapped["User"] = relationship(back_populates="calculations")
+    user: Mapped["User | None"] = relationship(back_populates="calculations")
 
     def __repr__(self) -> str:
         return f"<Calculation id={self.id} type={self.type!r} result={self.result}>"
