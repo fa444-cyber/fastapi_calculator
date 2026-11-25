@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log in</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px auto; max-width: 420px; padding: 0 16px; }
+        h1 { font-size: 1.6em; }
+        label { display: block; margin-top: 12px; font-weight: bold; }
+        input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+        button { margin-top: 18px; padding: 10px 16px; cursor: pointer; }
+        .message { margin-top: 16px; min-height: 1.2em; }
+        .error { color: #b00020; }
+        .success { color: #1b5e20; }
+        nav { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Log in</h1>
+
+    <form id="login-form" novalidate>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email">
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password">
+
+        <button id="login-button" type="submit">Log in</button>
+    </form>
+
+    <div id="message" class="message" role="status"></div>
+
+    <nav>
+        <a href="/register.html">Need an account? Register</a>
+    </nav>
+
+    <script>
+        const form = document.getElementById('login-form');
+        const message = document.getElementById('message');
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message ' + type;
+        }
+
+        function isValidEmail(value) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            // Client-side checks run before anything is sent to the server
+            if (!isValidEmail(email)) {
+                showMessage('Please enter a valid email address.', 'error');
+                return;
+            }
+            if (password === '') {
+                showMessage('Please enter your password.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                const data = await response.json();
+
+                if (response.status === 200) {
+                    localStorage.setItem('access_token', data.access_token);
+                    showMessage('Login successful.', 'success');
+                } else if (response.status === 401) {
+                    showMessage('Invalid email or password.', 'error');
+                } else {
+                    showMessage(data.error || 'Login failed.', 'error');
+                }
+            } catch (err) {
+                showMessage('Could not reach the server. Please try again.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
