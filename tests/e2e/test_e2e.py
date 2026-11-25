@@ -41,8 +41,11 @@ def test_calculator_add(page, fastapi_server):
     # Click the button that has the exact text "Add". This triggers the addition operation.
     page.click('button:text("Add")')
     
-    # Use an assertion to check that the text within the result div (with id 'result') is exactly "Result: 15".
-    # This verifies that the addition operation was performed correctly and the result is displayed as expected.
+    # Wait until the result div shows the expected text, instead of reading it immediately.
+    page.wait_for_function(
+        "() => document.querySelector('#result').innerText === 'Calculation Result: 15'",
+        timeout=5000,
+    )
     assert page.inner_text('#result') == 'Calculation Result: 15'
 
 @pytest.mark.e2e
