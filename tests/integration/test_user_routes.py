@@ -1,8 +1,10 @@
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal, engine
 from app.models import Base, User
+from app.security import SECRET_KEY, ALGORITHM
 from main import app
 
 
@@ -16,19 +18,27 @@ def client():
 
 def register(client, username="alice", email="alice@example.com", password="secret123"):
     return client.post(
-        "/users/register",
+        "/register",
         json={"username": username, "email": email, "password": password},
     )
 
 
-def test_register_creates_user_and_returns_safe_fields(client):
+def test_register_returns_token_and_safe_user_fields(client):
     response = register(client)
     assert response.status_code == 201
     body = response.json()
-    assert body["username"] == "alice"
-    assert body["email"] == "alice@example.com"
-    assert "password" not in body
-    assert "password_hash" not in body
+    assert body["token_type"] == "bearer"
+    assert body["user"]["username"] == "alice"
+    assert body["user"]["email"] == "alice@example.com"
+    assert "password" not in body["user"]
+    assert "password_hash" not in body["user"]
+
+
+def test_register_token_identifies_the_new_user(client):
+    body = register(client).json()
+    payload = jwt.decode(body["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    assert payload["username"] == "alice"
+    assert payload["sub"] == str(body["user"]["id"])
 
 
 def test_register_stores_hashed_password_in_database(client):
@@ -67,19 +77,22 @@ def test_register_rejects_short_password(client):
 
 def test_login_succeeds_with_correct_password(client):
     register(client)
-    response = client.post("/users/login", json={"username": "alice", "password": "secret123"})
+    response = client.post("/login", json={"email": "alice@example.com", "password": "secret123"})
     assert response.status_code == 200
-    assert response.json()["username"] == "alice"
-    assert "password_hash" not in response.json()
+    body = response.json()
+    assert body["user"]["username"] == "alice"
+    assert "password_hash" not in body["user"]
+    payload = jwt.decode(body["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    assert payload["username"] == "alice"
 
 
 def test_login_fails_with_wrong_password(client):
     register(client)
-    response = client.post("/users/login", json={"username": "alice", "password": "wrong-pass"})
+    response = client.post("/login", json={"email": "alice@example.com", "password": "wrong-pass"})
     assert response.status_code == 401
-    assert response.json()["error"] == "Invalid username or password"
+    assert response.json()["error"] == "Invalid email or password"
 
 
-def test_login_fails_for_unknown_user(client):
-    response = client.post("/users/login", json={"username": "nobody", "password": "secret123"})
+def test_login_fails_for_unknown_email(client):
+    response = client.post("/login", json={"email": "nobody@example.com", "password": "secret123"})
     assert response.status_code == 401
