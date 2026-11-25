@@ -1,24 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserRead
-from app.security import hash_password, verify_password
+from app.security import create_access_token, hash_password, verify_password
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["users"])
 
 
 class UserLogin(BaseModel):
-    """Login takes a username and password. The password is checked against the stored hash."""
+    """Login takes an email and password. The password is checked against the stored hash."""
 
-    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+class TokenResponse(BaseModel):
+    """Returned by register and login: a signed JWT plus the user's public data."""
+
+    access_token: str
+    token_type: str = "bearer"
+    user: UserRead
+
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     existing = (
         db.query(User)
@@ -36,12 +44,14 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    token = create_access_token(user.id, user.username)
+    return TokenResponse(access_token=token, user=UserRead.model_validate(user))
 
 
-@router.post("/login", response_model=UserRead)
+@router.post("/login", response_model=TokenResponse)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == credentials.username).first()
+    user = db.query(User).filter(User.email == credentials.email).first()
     if user is None or not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    return user
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_access_token(user.id, user.username)
+    return TokenResponse(access_token=token, user=UserRead.model_validate(user))
