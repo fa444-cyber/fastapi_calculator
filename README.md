@@ -1,6 +1,6 @@
 # FastAPI Calculator
 
-A FastAPI calculator web app with add, subtract, multiply, and divide operations, request logging, a browser interface, user registration and login with hashed passwords, and calculation storage in PostgreSQL.
+A FastAPI calculator web app with add, subtract, multiply, and divide operations, request logging, a browser interface, user registration and login with hashed passwords and JWT tokens, a register and login page, and calculation storage in PostgreSQL.
 
 ## Docker Hub
 
@@ -15,12 +15,23 @@ docker run -d -p 8000:8000 fayada/fastapi_calculator:latest
 
 Then open http://localhost:8000 in your browser.
 
+## Pages
+
+| Path | What it shows |
+|---|---|
+| `/` | The calculator page |
+| `/register.html` | Create an account with a username, email, and password |
+| `/login.html` | Log in with an email and password |
+| `/docs` | The interactive API documentation |
+
+After a successful register or login, the page stores the JWT in the browser's localStorage under `access_token`.
+
 ## API endpoints
 
 | Method | Path | What it does |
 |---|---|---|
-| POST | `/users/register` | Create a user (username, email, password). Returns the user without the password. |
-| POST | `/users/login` | Check a username and password against the stored hash. |
+| POST | `/register` | Create a user (username, email, password). Returns a JWT and the user without the password. Responds 201, or 400 if the username or email is taken. |
+| POST | `/login` | Check an email and password against the stored hash. Returns a JWT and the user, or 401 for a wrong email or password. |
 | GET | `/calculations` | List all saved calculations. |
 | GET | `/calculations/{id}` | Get one calculation. |
 | POST | `/calculations` | Compute and save a calculation (`type` is Add, Sub, Multiply, or Divide). |
@@ -28,19 +39,39 @@ Then open http://localhost:8000 in your browser.
 | DELETE | `/calculations/{id}` | Delete a saved calculation. |
 | POST | `/add`, `/subtract`, `/multiply`, `/divide` | The original calculator operations, which return the result only. |
 
+Tokens expire after 30 minutes. The signing key is read from the `JWT_SECRET_KEY` environment variable. If it isn't set, a development-only default is used, so set it for any real deployment.
+
 ## Checking the endpoints manually
 
 1. Start the app locally with `python main.py`, or run the Docker image.
 2. Open http://localhost:8000/docs in your browser.
 3. Expand an endpoint, click **Try it out**, enter the request body, and click **Execute**.
 
-For example, to create a calculation, use `POST /calculations` with this body:
+For example, to register a user, use `POST /register` with this body:
+
+```json
+{ "username": "alice", "email": "alice@example.com", "password": "secret123" }
+```
+
+To log in, use `POST /login` with this body:
+
+```json
+{ "email": "alice@example.com", "password": "secret123" }
+```
+
+To create a calculation, use `POST /calculations` with this body:
 
 ```json
 { "a": 6, "b": 3, "type": "Divide" }
 ```
 
 The response should include `"result": 2.0`.
+
+## Running the front end
+
+1. Start the app with `python main.py`, or run the Docker image.
+2. Open http://localhost:8000/register.html to create an account. Client-side checks reject an invalid email, a password under 8 characters, and passwords that don't match.
+3. Open http://localhost:8000/login.html to log in with the same email and password.
 
 ## Running the tests locally
 
@@ -74,15 +105,21 @@ pytest tests/unit tests/integration
 The integration tests connect to `postgresql+psycopg2://postgres:postgres@localhost:5432/fastapi_db` by default. To use a different database, set the `DATABASE_URL` environment variable before running the tests.
 
 The integration tests cover:
-- **User routes** (`tests/integration/test_user_routes.py`): registration, duplicate and invalid input, password hashing, and login.
+- **User routes** (`tests/integration/test_user_routes.py`): register, the JWT it returns, duplicate and invalid input, password hashing, and login with email and password.
 - **Calculation routes** (`tests/integration/test_calculation_routes.py`): create, browse, read, edit, and delete, plus errors such as a missing calculation, an unknown type, and a zero divisor.
 
-To run the end-to-end browser tests, install the Playwright browser first:
+5. Run the browser tests. These start the app on port 8000 themselves, so stop any other server first.
 
 ```bash
 playwright install chromium
 pytest tests/e2e
 ```
+
+The browser tests in `tests/e2e/test_e2e_auth.py` cover:
+- Registering with valid data shows a success message and stores a token.
+- Logging in with the correct password shows a success message and stores a token.
+- Registering with a short password shows an error in the browser.
+- Logging in with a wrong password shows "Invalid email or password."
 
 When you're finished, stop the test database:
 
@@ -108,16 +145,17 @@ These are planned for a later update, which will upgrade `starlette` and `fastap
 
 ## Project structure
 
-- `main.py`: FastAPI app, including the calculator routes and the user and calculation routers
+- `main.py`: FastAPI app, including the calculator routes, the page routes, and the user and calculation routers
 - `app/operations/`: arithmetic operations
 - `app/calculation_factory.py`: maps Add, Sub, Multiply, and Divide to their operations
 - `app/calculation_routes.py`: calculation BREAD endpoints
-- `app/user_routes.py`: user register and login endpoints
+- `app/user_routes.py`: `/register` and `/login` endpoints that return JWTs
 - `app/logging_config.py`: logging setup
 - `app/models.py`: SQLAlchemy `User` and `Calculation` models
 - `app/schemas.py`: Pydantic `UserCreate`, `UserRead`, `CalculationCreate`, and `CalculationRead` schemas
-- `app/security.py`: bcrypt password hashing and verification
+- `app/security.py`: bcrypt password hashing and verification, plus JWT creation and decoding
 - `app/database.py`: database engine and session setup
+- `templates/`: the calculator page, `register.html`, and `login.html`
 - `tests/unit/`, `tests/integration/`, `tests/e2e/`: test suites
 - `.github/workflows/test.yml`: GitHub Actions workflow that runs the tests on every push and pull request to `main`, scans the image with Trivy, then pushes the Docker image after the tests and scan pass
 - `.trivyignore`: accepted Trivy findings, with reasons in the README
